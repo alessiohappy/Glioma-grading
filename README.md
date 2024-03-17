@@ -8,10 +8,12 @@ Tasci,Erdal, Camphausen,Kevin, Krauze,Andra Valentina, and Zhuge,Ying. (2022). G
 
 ## Tools
 This project is being carried out using Python 3.9.13 with the Spyder IDLE (Anaconda).
+Statistical analyses will be carried out in Rstudio 4.2.2 ("Innocent and Trusting").
 
 ## Tasks and libraries
-1 - Data cleaning: *pandas*
-2 - Data visualization: *matplotlib*, *seaborn*
-3 - Hyperparameters tuning: *Halving random search*, *Bayesian optimization*
-4 - Machine learning models: *logistic regression*, *support vector machine*, *XGBoost*, *AdaBoost*, *CatBoost*, *random forest*
-5 - Explainable AI: *SHAP* (SHapely Additive exPlanations)
+1 - Data cleaning: *pandas* /
+2 - Data visualization: *matplotlib*, *seaborn* /
+3 - Statistical analysis: *Rstudio* /
+4 - Hyperparameters tuning: *Halving random search*, *Bayesian optimization* /
+5 - Machine learning models: *logistic regression*, *support vector machine*, *XGBoost*, *AdaBoost*, *CatBoost*, *random forest* /
+6 - Explainable AI: *SHAP* (SHapely Additive exPlanations)
