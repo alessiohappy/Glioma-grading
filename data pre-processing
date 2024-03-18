@@ -8,6 +8,10 @@ df = pd.read_csv("C:\\Users\\R2D2\\Desktop\\TCGA_InfoWithGrade.csv",
 
 '''Data cleaning and description'''
 
+# describe the dataset
+dd = df.describe()
+
+
 # visualize missing values
 sns.set(rc = {"figure.dpi":600})
 sns.heatmap(df.isna(),
