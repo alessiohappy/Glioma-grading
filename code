@@ -1,0 +1,127 @@
+# library
+import pandas as pd
+import seaborn as sns
+
+# read the dataframe
+df = pd.read_csv("C:\\Users\\R2D2\\Desktop\\TCGA_InfoWithGrade.csv",
+                 sep = ",")
+
+'''Data cleaning and description'''
+
+# visualize missing values
+sns.set(rc = {"figure.dpi":600})
+sns.heatmap(df.isna(),
+            cmap = "coolwarm",
+            vmin = 0,
+            vmax = 1,
+            xticklabels = True,
+            cbar_kws = {'ticks': [0, 1]})
+
+# remove missing values
+df = df.dropna()
+
+# reverse the encoding - grade → glioma
+glioma = []
+for t in df["Grade"]:
+    if t == 0:
+        glioma.append("LGG")
+    else:
+        glioma.append("GBM")
+
+df["glioma"] = glioma
+del(glioma, t)
+
+# reverse the encoding - gender → sex
+sex = []
+for s in df["Gender"]:
+    if s == 0:
+        sex.append("male")
+    else:
+        sex.append("female")
+
+df["Sex"] = sex
+del(sex, s)
+
+# reverse the encoding - race → ethnicity
+eth = []
+for e in df["Race"]:
+    if e == 0:
+        eth.append("white")
+    elif e == 1:
+        eth.append("black/african-AM")
+    elif e == 2:
+        eth.append("asian")
+    else:
+        eth.append("AM-indian/alaska native")
+
+df["Ethnicity"] = eth
+del(eth, e)
+
+# Count the occurrences
+grades = df["glioma"].value_counts()
+print(grades)
+sex = df["Sex"].value_counts()
+print(sex)
+ethnicity = df["Ethnicity"].value_counts()
+print(ethnicity)
+
+# drop the ethnicity 3 (AM-indian/alaska native)
+# Ethnicity = 3 only has one instance, therefore it could be removed from the analysis
+df = df[df.Race != 3]
+
+# grouped barplots - sex
+sns.set(rc = {"figure.dpi":600})
+sns.set_theme()
+p = sns.catplot(data = df,
+                kind = "bar",
+                x = "glioma",
+                y = "Age_at_diagnosis",
+                hue = "Sex",
+                palette = "dark",
+                alpha = .8,
+                height = 6,
+                legend_out = True,
+                ci = 95)
+p.set_axis_labels("Glioma grade", "Age at glioma diagnosis")
+del(p)
+
+# distributions - sex
+sns.set(rc = {"figure.dpi":600})
+g = sns.displot(
+    df,
+    x = "Age_at_diagnosis",
+    hue = "glioma",
+    col = "Sex",
+    col_wrap = 2,
+    height = 3)
+g.set_axis_labels("Age at glioma diagnosis", "Count")
+del(g)
+
+# grouped barplots - ethnicity
+sns.set(rc = {"figure.dpi":600})
+sns.set_theme()
+p1 = sns.catplot(data = df,
+                kind = "bar",
+                x = "glioma",
+                y = "Age_at_diagnosis",
+                hue = "Ethnicity",
+                palette = "dark",
+                alpha = .8,
+                height = 6,
+                legend_out = True,
+                ci = 95)
+p1.set_axis_labels("Glioma grade", "Age at glioma diagnosis")
+del(p1)
+
+# distributions - ethnicity
+sns.set(rc = {"figure.dpi":600})
+g1 = sns.displot(
+    df,
+    x = "Age_at_diagnosis",
+    hue = "glioma",
+    col = "Ethnicity",
+    col_wrap = 2,
+    height = 3)
+g1.set_axis_labels("Age at glioma diagnosis", "Count")
+sns.move_legend(g1, "upper left", bbox_to_anchor=(.55, .45))
+del(g1)
