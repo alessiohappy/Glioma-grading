@@ -13,6 +13,6 @@ This project is being carried out using Python 3.9.13 with the Spyder IDLE (Anac
 1 - Data cleaning: *pandas* /
 2 - Data visualization: *matplotlib*, *seaborn* /
 3 - Imbalanced data handling: *raw data*, *under-sampling*, *over-sampling* /
-4 - Hyperparameters tuning: *Halving random search*, *Bayesian optimization* /
-5 - Machine learning models: *logistic regression*, *support vector machine*, *XGBoost*, *AdaBoost*, *CatBoost*, *random forest* /
+4 - Hyperparameters tuning: *Bayesian optimization* /
+5 - Machine learning models: *support vector machine*, *XGBoost*, *Multi-Layer Perceptron* /
 6 - Explainable AI: *SHAP* (SHapely Additive exPlanations)
