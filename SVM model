@@ -210,3 +210,67 @@ _ = display.ax_.set_title("Precision-Recall curve")
 # calibration plot
 # calibration from estimation
 disp = CalibrationDisplay.from_estimator(svc, X_test, y_test)
+
+
+'''#3: SHapely Additive exPlanations'''
+# Creazione del modello SHAP Explainer
+final_shap_df_v2 = pd.DataFrame(data = X_res, columns = new_col_names)
+shap_values_tree = shap.KernelExplainer(svc.predict, data = X_train).shap_values(X = final_shap_df_v2, y = y_res)
+print(shap_values_tree)
+
+# Summary_plot and dependence plot
+shap.summary_plot(shap_values_tree, final_shap_df_v2)
+shap.summary_plot(shap_values_tree, final_shap_df_v2, plot_type = "bar")
+
+# Split the dataset and shap value in cont and cat variables and keep only cat
+X_cat_var = X_res.drop(cont_var, axis = 1)
+X_cat_var = X_cat_var.drop(other_var, axis = 1)
+
+shap_values_tree_name = pd.DataFrame(shap_values_tree_cases, columns = new_col_names)
+
+shap_values_categorical = shap_values_tree_name.drop(cont_var, axis = 1)
+shap_values_categorical = shap_values_categorical.drop(other_var, axis = 1)
+
+# Get number of unique categories for each feature 
+print(new_df_cat_var.columns)
+feature_names = X_cat_var.columns
+n_categories = [3]
+
+new_shap_values = []
+for values in shap_values_categorical.values:
+    values_split = np.split(values , np.cumsum(n_categories)) #split shap values into a list for each feature
+    values_sum = [sum(l) for l in values_split] #sum values within each list
+    new_shap_values.append(values_sum)
+
+# Replace shap values for categorical variables
+new_shap_values_categorical = np.array(new_shap_values)
+
+categorical_variables_name = ["Race", "Null"]
+
+new_shap_values_categorical_name = pd.DataFrame(new_shap_values_categorical, columns = categorical_variables_name)
+
+categorical_shap_values_name = new_shap_values_categorical_name.drop('Null', axis = 1)
+
+# Concatenate shap values for categorial and continue variables
+continue_shap_value = shap_values_tree_name.drop(feature_names, axis = 1)
+
+Final_shap_value = np.concatenate((continue_shap_value, categorical_shap_values_name), axis = 1)
+columns_for_final_shap_value = ["Age_at_diagnosis", "Race", 'Gender', 'IDH1','TP53', 'ATRX', 'PTEN', 'EGFR', 'CIC', 'MUC16','PIK3CA', 'NF1', 'PIK3R1', 'FUBP1', 'RB1', 'NOTCH1', 'BCOR','CSMD3', 'SMARCA4', 'GRIN2A', 'IDH2', 'FAT4', 'PDGFRA']
+
+Final_shap_values_name = pd.DataFrame(Final_shap_value, columns = columns_for_final_shap_value)
+
+rus_2 = RandomUnderSampler(sampling_strategy = 0.80)
+X_res_2, y_res_2 = rus.fit_resample(df_no_Pheno, y)
+
+# Convert pandas df to np 
+prova_1 = Final_shap_values_name.to_numpy()
+prova_2 = X_res_2.to_numpy()
+final_shap_values_tree = pd.DataFrame(prova_1, columns = columns_for_final_shap_value)
+final_db_plot = pd.DataFrame(prova_2, columns = columns_for_final_shap_value)
+
+# Summary_plot and dependence plot
+fig = plt.subplots(dpi = 1000)
+plt.title("SVM", y = 1.02, x = 0.5)
+shap.summary_plot(prova_1, prova_2, feature_names = columns_for_final_shap_value)
+fig = plt.subplots(dpi = 1000)
+shap.summary_plot(prova_1, prova_2, feature_names = columns_for_final_shap_value, plot_type = "bar")
