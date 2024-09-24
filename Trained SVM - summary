@@ -1,0 +1,13 @@
+Best hyperparameters: {'target': 0.9543936965811967, 'params': {'C': 8.803285920389895, 'gamma': 0.08308493332767249}}
+
+Accuracy: 0.8205128205128205
+              precision    recall  f1-score   support
+
+           0       0.87      0.75      0.81        97
+           1       0.78      0.89      0.83        98
+
+    accuracy                           0.82       195
+   macro avg       0.83      0.82      0.82       195
+weighted avg       0.83      0.82      0.82       195
+
+
