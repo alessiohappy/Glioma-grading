@@ -1,5 +1,5 @@
+### Libraries
 ```
-# Load the libraries
 import pandas as pd
 from sklearn.model_selection import train_test_split, cross_val_score, learning_curve
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
@@ -18,19 +18,17 @@ from sklearn.calibration import CalibrationDisplay
 from sklearn.model_selection import RepeatedStratifiedKFold
 ```
 
+### 1: Pre-processing
 ```
-# 1: Pre-processing
-
 ## Import dataset
 df = pd.read_csv("C:\\Users\\aless\\OneDrive - University of Pisa\\"
                  + "ML playground\\Playground_tabular data\\Glioma grading\\"
                  + "glioma.csv", sep = ",", decimal = ".")
 df = df.dropna()
-
 c = df.columns
-
 df = df.drop(["glioma", "Sex", "Ethnicity"], axis = 1)
-
+```
+```
 ## Define class, continous and categorical variables 
 y = df['Grade']
 df_no_Pheno = df.drop('Grade', axis = 1)
@@ -48,7 +46,8 @@ df_cont_var = df_cont_var.drop(other_var, axis = 1)
 
 df_other_var = df_no_Pheno.drop(cat_var, axis = 1)
 df_other_var = df_other_var.drop(cont_var, axis = 1)
-
+```
+```
 ## Preprocessing: dummy variables 
 enc = OneHotEncoder()
 enc.fit(df_cat_var)
@@ -57,14 +56,16 @@ cat_var_encoded = enc.transform(df_cat_var).toarray()
 cat_var_name = df_cat_var.columns
 new_cat_var_names = enc.get_feature_names_out(cat_var_name)
 new_df_cat_var = pd.DataFrame(cat_var_encoded, columns = new_cat_var_names)
-
+```
+```
 ## preprocessing: normalization with Z-score
 scaler =  StandardScaler()
 scaler.fit(df_cont_var) 
 cont_var_scaled = scaler.transform(df_cont_var)
 
 new_df_cont_var = pd.DataFrame(cont_var_scaled, columns = cont_var)
-
+```
+```
 ## Create a df with normalize variables and cat variables 
 new_df = np.concatenate((new_df_cont_var, df_other_var), axis=1)
 new_df_1 = np.concatenate((new_df, new_df_cat_var), axis=1)
@@ -74,24 +75,26 @@ new_col_names = ["Age_at_diagnosis", 'Gender', 'IDH1', 'TP53', 'ATRX', 'PTEN',
                  'FAT4', 'PDGFRA', "Race_0.0", "Race_1.0", "Race_2.0"]
 
 X = pd.DataFrame(data=new_df_1, columns=new_col_names)
-
 ```
-# 2: Oversampling  
+
+### 2: Oversampling 
+``` 
 # RandomOverSampling
 rus = RandomOverSampler()
 X_res, y_res = rus.fit_resample(X, y)
-
 print(sorted(Counter(y_res).items()))
-
+```
+```
 ## Classification task
 X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size = 0.2, stratify = y_res)
-
+```
+```
 ## Stratified cv
 cv = RepeatedStratifiedKFold(n_splits=6, n_repeats=3, random_state=1)
 ```
 
+### 3: Bayesian Optimization
 ```
-# 3: Bayesian Optimization
 ## Define optimization function
 def opt_svc(C, gamma):
     params = {
@@ -114,15 +117,16 @@ pbounds = {'C': (0.001, 10),
 ## Create the bayesian optimization object
 bayopt = BayesianOptimization(f = opt_svc,
                               pbounds = pbounds)
-
+```
+```
 ## Bayesian Optimization
 bayopt.maximize(init_points = 50, n_iter = 100)
 print("Best hyperparameters:", bayopt.max)
 best_params = bayopt.max['params']
 ```
 
+### 4: ML model
 ```
-# 4: ML model
 ## Create a SVC model
 svc = SVC(C = float(best_params['C']),
           gamma = float(best_params['gamma']),
@@ -130,24 +134,28 @@ svc = SVC(C = float(best_params['C']),
           class_weight = {0: 1.0,
                           1: 1.5},
           probability = True)
-
+```
+```
 ## Fit the SVC object to the data
 svc.fit(X_train, y_train)
-
+```
+```
 ## Test the model
 y_pred = svc.predict(X_test)
 ```
 
+### 5: Model evaluation
 ```
-# 5: Model evaluation
 ## accuracy
 accuracy = accuracy_score(y_test, y_pred)
 print(accuracy)
-
+```
+```
 ## Compute the classification report
 report = classification_report(y_test, y_pred)
 print(classification_report(y_test, y_pred))
-
+```
+```
 ## Learning curve
 train_sizes, train_scores, test_scores = learning_curve(svc, X_train, y_train, cv = 3, scoring = 'recall')
 train_scores_mean = np.mean(train_scores, axis = 1)
@@ -168,16 +176,19 @@ plt.plot(train_sizes, train_scores_mean, 'o-', color = "r", label = "Training Re
 plt.plot(train_sizes, test_scores_mean, 'o-', color = "g", label = "Validation Recall")
 plt.legend(loc = "best")
 plt.show()
-
+```
+```
 ## Confusion Matrix
 confusion_matrix(y_test, y_pred)
 plot_confusion_matrix(y_test, y_pred, normalize = True)
-
+```
+```
 ## Predict probabilities
 y_scores = svc.decision_function(X_test)
 fpr, tpr, _ = roc_curve(y_test, y_scores)
 roc_auc = auc(fpr, tpr)
-
+```
+```
 ## Plot ROC curve
 plt.figure()
 plt.plot(fpr, tpr, color = 'darkorange', lw = 2, label = 'ROC curve (area = %0.2f)' % roc_auc)
@@ -189,12 +200,14 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver Operating Characteristic (ROC) Curve')
 plt.legend(loc="lower right")
 plt.show()
-
+```
+```
 ## Plot PR Curve
 plt.rcParams['figure.dpi'] = 600
 display = PrecisionRecallDisplay.from_predictions(y_test, y_scores, name = "SVMClassifier")
 _ = display.ax_.set_title("Precision-Recall curve")
-
+```
+```
 ## calibration from estimation
 disp = CalibrationDisplay.from_estimator(svc, X_test, y_test)
 ```
