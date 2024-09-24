@@ -1,11 +1,12 @@
-#Load the libraries
+# Load the libraries
 import pandas as pd
 from sklearn.model_selection import train_test_split, cross_val_score, learning_curve
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.preprocessing import OneHotEncoder
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 from collections import Counter
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.over_sampling import RandomOverSampler
 from sklearn.svm import SVC
 from scikitplot.metrics import plot_confusion_matrix
 import matplotlib.pyplot as plt
@@ -13,10 +14,11 @@ from bayes_opt import BayesianOptimization
 from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import PrecisionRecallDisplay
 from sklearn.calibration import CalibrationDisplay
+from sklearn.model_selection import RepeatedStratifiedKFold
 
 
 '''1: Pre-processing'''
-#Import dataset
+# Import dataset
 df = pd.read_csv("C:\\Users\\aless\\OneDrive - University of Pisa\\"
                  + "ML playground\\Playground_tabular data\\Glioma grading\\"
                  + "glioma.csv", sep = ",", decimal = ".")
@@ -26,7 +28,7 @@ c = df.columns
 
 df = df.drop(["glioma", "Sex", "Ethnicity"], axis = 1)
 
-#Define class, continous and categorical variables 
+# Define class, continous and categorical variables 
 y = df['Grade']
 
 df_no_Pheno = df.drop('Grade', axis = 1)
@@ -57,9 +59,15 @@ cat_var_name = df_cat_var.columns
 new_cat_var_names = enc.get_feature_names_out(cat_var_name)
 new_df_cat_var = pd.DataFrame(cat_var_encoded, columns = new_cat_var_names)
 
+#preprocessing: normalization with Z-score
+scaler =  StandardScaler()
+scaler.fit(df_cont_var) 
+cont_var_scaled = scaler.transform(df_cont_var)
+
+new_df_cont_var = pd.DataFrame(cont_var_scaled, columns = cont_var)
 
 # Create a df with normalize variables and cat variables 
-new_df = np.concatenate((df_cont_var, df_other_var), axis=1)
+new_df = np.concatenate((new_df_cont_var, df_other_var), axis=1)
 new_df_1 = np.concatenate((new_df, new_df_cat_var), axis=1)
 new_col_names = ["Age_at_diagnosis", 'Gender', 'IDH1', 'TP53', 'ATRX', 'PTEN',
                  'EGFR', 'CIC', 'MUC16', 'PIK3CA', 'NF1', 'PIK3R1', 'FUBP1',
@@ -71,7 +79,7 @@ X = pd.DataFrame(data=new_df_1, columns=new_col_names)
 
 '''2: Bayesian Optimization'''
 # Undersampling dataset 
-rus = RandomUnderSampler(sampling_strategy = 0.80)
+rus = RandomOverSampler()
 X_res, y_res = rus.fit_resample(X, y)
 
 print(sorted(Counter(y_res).items()))
@@ -79,6 +87,8 @@ print(sorted(Counter(y_res).items()))
 # Classification task
 X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size = 0.2, stratify = y_res)
 
+# Stratified cv
+cv = RepeatedStratifiedKFold(n_splits=6, n_repeats=3, random_state=1)
 
 '''Bayesian Optimization'''
 def opt_svc(C, gamma):
@@ -89,9 +99,10 @@ def opt_svc(C, gamma):
 # Execute the cross-validation phase with the given paramters
     model = SVC(**params,
                 kernel = "rbf",
-                class_weight = "balanced",
+                class_weight = {0: 1.0,
+                                1: 1.5},
                 probability = True)
-    scores = cross_val_score(model, X_train, y_train, cv = 3, scoring = "recall")
+    scores = cross_val_score(model, X_train, y_train, cv = cv, scoring = "recall")
     return scores.mean()
 
 # Define the parameter space for optimization
@@ -113,7 +124,8 @@ best_params = bayopt.max['params']
 svc = SVC(C = float(best_params['C']),
           gamma = float(best_params['gamma']),
           kernel = "rbf",
-          class_weight = "balanced",
+          class_weight = {0: 1.0,
+                          1: 1.5},
           probability = True)
 
 # Fit the SVC object to the data
@@ -153,26 +165,7 @@ plt.plot(train_sizes, test_scores_mean, 'o-', color = "g", label = "Validation R
 plt.legend(loc = "best")
 plt.show()
 
-'''# Loss Function'''
-# Calculate accuracy on training and validation sets
-train_acc = accuracy_score(y_train, svc.predict(X_train))
-val_acc = accuracy_score(y_test, svc.predict(X_test))
-print(f'Training accuracy: {train_acc}')
-print(f'Validation accuracy: {val_acc}')
-
-# Plotting the training and validation accuracy
-plt.plot([1], [train_acc], 'bo', label='Training accuracy')
-plt.plot([1], [val_acc], 'ro', label='Validation accuracy')
-plt.title('Training and Validation Accuracy')
-plt.xlabel('Epochs')
-plt.ylabel('Accuracy')
-plt.legend()
-plt.show()
-
-# Confusion matrix
-confusion_matrix(y_test, y_pred)
-plot_confusion_matrix(y_test, y_pred)
-
+''' # Confusion Matrix'''
 # Confusion matrix
 confusion_matrix(y_test, y_pred)
 plot_confusion_matrix(y_test, y_pred, normalize = True)
@@ -203,67 +196,3 @@ _ = display.ax_.set_title("Precision-Recall curve")
 # calibration plot
 # calibration from estimation
 disp = CalibrationDisplay.from_estimator(svc, X_test, y_test)
-
-
-'''#3: SHapely Additive exPlanations'''
-# Creazione del modello SHAP Explainer
-final_shap_df_v2 = pd.DataFrame(data = X_res, columns = new_col_names)
-shap_values_tree = shap.KernelExplainer(svc.predict, data = X_train).shap_values(X = final_shap_df_v2, y = y_res)
-print(shap_values_tree)
-
-# Summary_plot and dependence plot
-shap.summary_plot(shap_values_tree, final_shap_df_v2)
-shap.summary_plot(shap_values_tree, final_shap_df_v2, plot_type = "bar")
-
-# Split the dataset and shap value in cont and cat variables and keep only cat
-X_cat_var = X_res.drop(cont_var, axis = 1)
-X_cat_var = X_cat_var.drop(other_var, axis = 1)
-
-shap_values_tree_name = pd.DataFrame(shap_values_tree_cases, columns = new_col_names)
-
-shap_values_categorical = shap_values_tree_name.drop(cont_var, axis = 1)
-shap_values_categorical = shap_values_categorical.drop(other_var, axis = 1)
-
-# Get number of unique categories for each feature 
-print(new_df_cat_var.columns)
-feature_names = X_cat_var.columns
-n_categories = [3]
-
-new_shap_values = []
-for values in shap_values_categorical.values:
-    values_split = np.split(values , np.cumsum(n_categories)) #split shap values into a list for each feature
-    values_sum = [sum(l) for l in values_split] #sum values within each list
-    new_shap_values.append(values_sum)
-
-# Replace shap values for categorical variables
-new_shap_values_categorical = np.array(new_shap_values)
-
-categorical_variables_name = ["Race", "Null"]
-
-new_shap_values_categorical_name = pd.DataFrame(new_shap_values_categorical, columns = categorical_variables_name)
-
-categorical_shap_values_name = new_shap_values_categorical_name.drop('Null', axis = 1)
-
-# Concatenate shap values for categorial and continue variables
-continue_shap_value = shap_values_tree_name.drop(feature_names, axis = 1)
-
-Final_shap_value = np.concatenate((continue_shap_value, categorical_shap_values_name), axis = 1)
-columns_for_final_shap_value = ["Age_at_diagnosis", "Race", 'Gender', 'IDH1','TP53', 'ATRX', 'PTEN', 'EGFR', 'CIC', 'MUC16','PIK3CA', 'NF1', 'PIK3R1', 'FUBP1', 'RB1', 'NOTCH1', 'BCOR','CSMD3', 'SMARCA4', 'GRIN2A', 'IDH2', 'FAT4', 'PDGFRA']
-
-Final_shap_values_name = pd.DataFrame(Final_shap_value, columns = columns_for_final_shap_value)
-
-rus_2 = RandomUnderSampler(sampling_strategy = 0.80)
-X_res_2, y_res_2 = rus.fit_resample(df_no_Pheno, y)
-
-# Convert pandas df to np 
-prova_1 = Final_shap_values_name.to_numpy()
-prova_2 = X_res_2.to_numpy()
-final_shap_values_tree = pd.DataFrame(prova_1, columns = columns_for_final_shap_value)
-final_db_plot = pd.DataFrame(prova_2, columns = columns_for_final_shap_value)
-
-# Summary_plot and dependence plot
-fig = plt.subplots(dpi = 1000)
-plt.title("SVM", y = 1.02, x = 0.5)
-shap.summary_plot(prova_1, prova_2, feature_names = columns_for_final_shap_value)
-fig = plt.subplots(dpi = 1000)
-shap.summary_plot(prova_1, prova_2, feature_names = columns_for_final_shap_value, plot_type = "bar")
